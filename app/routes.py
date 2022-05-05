@@ -2,6 +2,7 @@ from app import db
 from app.models.task import Task
 from flask import Blueprint, jsonify, abort, make_response, request
 from sqlalchemy import desc
+import datetime
 
 task_bp = Blueprint("task", __name__, url_prefix="/tasks")
 
@@ -17,6 +18,21 @@ def validate_task_id(task_id):
         abort(make_response({"error": f"task {task_id} not found"}, 404))
     
     return task
+
+def create_response_body(task):
+    if task.completed_at:
+        task_completed = True
+    else:
+        task_completed = False
+    response_body = {
+        "task": {
+            "id": task.task_id,
+            "title": task.title,
+            "description": task.description,
+            "is_complete": task_completed
+            }
+    }
+    return response_body
 
 @task_bp.route("", methods=["GET"])
 def read_all_tasks():
@@ -45,14 +61,7 @@ def read_all_tasks():
 def read_specific_task(task_id):
     task = validate_task_id(task_id)
     
-    response_body = {
-        "task": {
-            "id": task.task_id,
-            "title": task.title,
-            "description": task.description,
-            "is_complete": False
-            }
-    }
+    response_body = create_response_body(task)
 
     return jsonify(response_body)
 
@@ -66,23 +75,19 @@ def create_task():
     task = Task(title=request_body["title"],
         description=request_body["description"])
     
+    if "completed_at" in request_body:
+        task.completed_at = request_body["completed_at"]
+    
     db.session.add(task)
     db.session.commit()
 
-    response_body = {
-        "task": {
-            "id": task.task_id,
-            "title": task.title,
-            "description": task.description,
-            "is_complete": False
-            }
-    }
+    response_body = create_response_body(task)
 
     return make_response(jsonify(response_body), 201)
 
 
 @task_bp.route("/<task_id>", methods=["PUT"])
-def update_task(task_id):
+def replace_task(task_id):
     task = validate_task_id(task_id)
 
     request_body = request.get_json()
@@ -93,16 +98,12 @@ def update_task(task_id):
     task.title = request_body["title"]
     task.description = request_body["description"]
 
+    if "completed_at" in request_body:
+        task.completed_at = request_body["completed_at"]
+
     db.session.commit()
 
-    response_body = {
-        "task": {
-            "id": task.task_id,
-            "title": task.title,
-            "description": task.description,
-            "is_complete": False
-            }
-    }
+    response_body = create_response_body(task)
 
     return make_response(jsonify(response_body), 200)
 
@@ -116,4 +117,26 @@ def delete_task(task_id):
 
     response_body = {'details': f'Task {task_id} "{title}" successfully deleted'}
 
+    return make_response(jsonify(response_body), 200)
+
+@task_bp.route("/<task_id>/mark_complete", methods=["PATCH"])
+def mark_complete(task_id):
+    task = validate_task_id(task_id)
+    
+    task.completed_at = datetime.datetime.now()
+    db.session.commit()
+
+    response_body = create_response_body(task)
+    
+    return make_response(jsonify(response_body), 200)
+
+@task_bp.route("/<task_id>/mark_incomplete", methods=["PATCH"])
+def mark_incomplete(task_id):
+    task = validate_task_id(task_id)
+    
+    task.completed_at = None
+    db.session.commit()
+
+    response_body = create_response_body(task)
+    
     return make_response(jsonify(response_body), 200)
