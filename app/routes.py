@@ -13,18 +13,26 @@ load_dotenv()
 task_bp = Blueprint("task", __name__, url_prefix="/tasks")
 goal_bp = Blueprint("goal", __name__, url_prefix="/goals")
 
-def validate_task_id(task_id):
+def validate_id(id):
     try:
-        task_id = int(task_id)
+        id = int(id)
     except ValueError:
-        abort(make_response({"error": f"{task_id} is an invalid task ID. ID must be an integer."}, 400))
-
-    task = Task.query.get(task_id)
-
-    if not task:
-        abort(make_response({"error": f"task {task_id} not found"}, 404))
+        abort(make_response({"error": f"{id} is an invalid ID. ID must be an integer."}, 400))
     
-    return task
+    return id
+
+def retrieve_object(id, Model):
+    if Model == Task:
+        model_type = "task"
+    elif Model == Goal:
+        model_type = "goal"
+    
+    model = Model.query.get(id)
+
+    if not model:
+        abort(make_response({"error": f"{model_type} {id} not found"}, 404))
+    
+    return model
 
 def create_task_response_body(task):
     if task.completed_at:
@@ -66,7 +74,9 @@ def read_all_tasks():
 
 @task_bp.route("/<task_id>", methods=["GET"])
 def read_specific_task(task_id):
-    task = validate_task_id(task_id)
+    task_id = validate_id(task_id)
+
+    task = retrieve_object(task_id, Task)
     
     response_body = create_task_response_body(task)
 
@@ -95,8 +105,9 @@ def create_task():
 
 @task_bp.route("/<task_id>", methods=["PUT"])
 def replace_task(task_id):
-    task = validate_task_id(task_id)
-
+    task_id = validate_id(task_id)
+    task = retrieve_object(task_id, Task)
+    
     request_body = request.get_json()
 
     if "title" not in request_body or "description" not in request_body:
@@ -116,7 +127,9 @@ def replace_task(task_id):
 
 @task_bp.route("/<task_id>", methods=["DELETE"])
 def delete_task(task_id):
-    task = validate_task_id(task_id)
+    task_id = validate_id(task_id)
+    task = retrieve_object(task_id, Task)
+   
     title = task.title
 
     db.session.delete(task)
@@ -128,8 +141,9 @@ def delete_task(task_id):
 
 @task_bp.route("/<task_id>/mark_complete", methods=["PATCH"])
 def mark_complete(task_id):
-    task = validate_task_id(task_id)
-
+    task_id = validate_id(task_id)
+    task = retrieve_object(task_id, Task)
+    
     # change completed at time and commit to database
     task.completed_at = datetime.datetime.now()
     db.session.commit()
@@ -148,7 +162,8 @@ def mark_complete(task_id):
 
 @task_bp.route("/<task_id>/mark_incomplete", methods=["PATCH"])
 def mark_incomplete(task_id):
-    task = validate_task_id(task_id)
+    task_id = validate_id(task_id)
+    task = retrieve_object(task_id, Task)
     
     task.completed_at = None
     db.session.commit()
@@ -176,3 +191,66 @@ def create_goal():
     }
 
     return make_response(jsonify(response_body), 201)
+
+@goal_bp.route("", methods=["GET"])
+def read_all_goals():
+
+    goals = Goal.query.all()
+    response_body = []
+
+    for goal in goals:
+        response_body.append({
+            "id": goal.goal_id,
+            "title": goal.title
+        })
+
+    return make_response(jsonify(response_body), 200)
+
+@goal_bp.route("/<goal_id>", methods=["GET"])
+def read_specific_goal(goal_id):
+    goal_id = validate_id(goal_id)
+    goal = retrieve_object(goal_id, Goal)
+   
+    response_body = {
+        "goal": {
+            "id": goal.goal_id,
+            "title": goal.title
+        }
+    }
+
+    return make_response(jsonify(response_body), 200)
+
+@goal_bp.route("/<goal_id>", methods=["PUT"])
+def update_goal(goal_id):
+    goal_id = validate_id(goal_id)
+    goal = retrieve_object(goal_id, Goal)
+
+    request_body = request.get_json()
+
+    if "title" not in request_body:
+        return jsonify({"details": f"Invalid data"}), 400
+    
+    goal.title = request_body["title"]
+    db.session.commit()
+
+    response_body = {
+        "goal": {
+            "id": goal.goal_id,
+            "title": goal.title
+        }
+    }
+
+    return make_response(jsonify(response_body), 200)
+
+@goal_bp.route("/<goal_id>", methods=["DELETE"])
+def delete_goal(goal_id):
+    goal_id = validate_id(goal_id)
+    goal = retrieve_object(goal_id, Goal)
+    title = goal.title
+    
+    db.session.delete(goal)
+    db.session.commit()
+    
+    response_body = {"details": f'Goal {goal_id} "{title}" successfully deleted'}
+
+    return make_response(jsonify(response_body), 200)
