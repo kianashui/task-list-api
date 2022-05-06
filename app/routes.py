@@ -1,5 +1,6 @@
 from app import db
 from app.models.task import Task
+from app.models.goal import Goal
 from flask import Blueprint, jsonify, abort, make_response, request
 from sqlalchemy import desc
 import datetime
@@ -10,6 +11,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 task_bp = Blueprint("task", __name__, url_prefix="/tasks")
+goal_bp = Blueprint("goal", __name__, url_prefix="/goals")
 
 def validate_task_id(task_id):
     try:
@@ -24,7 +26,7 @@ def validate_task_id(task_id):
     
     return task
 
-def create_response_body(task):
+def create_task_response_body(task):
     if task.completed_at:
         task_completed = True
     else:
@@ -66,7 +68,7 @@ def read_all_tasks():
 def read_specific_task(task_id):
     task = validate_task_id(task_id)
     
-    response_body = create_response_body(task)
+    response_body = create_task_response_body(task)
 
     return jsonify(response_body)
 
@@ -86,7 +88,7 @@ def create_task():
     db.session.add(task)
     db.session.commit()
 
-    response_body = create_response_body(task)
+    response_body = create_task_response_body(task)
 
     return make_response(jsonify(response_body), 201)
 
@@ -108,7 +110,7 @@ def replace_task(task_id):
 
     db.session.commit()
 
-    response_body = create_response_body(task)
+    response_body = create_task_response_body(task)
 
     return make_response(jsonify(response_body), 200)
 
@@ -140,7 +142,7 @@ def mark_complete(task_id):
 
     r = requests.post("https://slack.com/api/chat.postMessage", params=message_info, headers=headers)
     
-    response_body = create_response_body(task)
+    response_body = create_task_response_body(task)
     
     return make_response(jsonify(response_body), 200)
 
@@ -151,6 +153,26 @@ def mark_incomplete(task_id):
     task.completed_at = None
     db.session.commit()
 
-    response_body = create_response_body(task)
+    response_body = create_task_response_body(task)
     
     return make_response(jsonify(response_body), 200)
+
+@goal_bp.route("", methods=["POST"])
+def create_goal():
+    request_body = request.get_json()
+
+    if "title" not in request_body:
+        return jsonify({"details": "Invalid data"}), 400
+    
+    goal = Goal(title=request_body["title"])
+    db.session.add(goal)
+    db.session.commit()
+
+    response_body = {
+        "goal": {
+            "id": goal.goal_id,
+            "title": goal.title
+        }
+    }
+
+    return make_response(jsonify(response_body), 201)
