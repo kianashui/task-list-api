@@ -3,6 +3,11 @@ from app.models.task import Task
 from flask import Blueprint, jsonify, abort, make_response, request
 from sqlalchemy import desc
 import datetime
+import requests
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 task_bp = Blueprint("task", __name__, url_prefix="/tasks")
 
@@ -122,10 +127,19 @@ def delete_task(task_id):
 @task_bp.route("/<task_id>/mark_complete", methods=["PATCH"])
 def mark_complete(task_id):
     task = validate_task_id(task_id)
-    
+
+    # change completed at time and commit to database
     task.completed_at = datetime.datetime.now()
     db.session.commit()
 
+    # send automatic slack message
+    message = "Someone just completed the task " + task.title
+    message_info = {"channel": "task-notifications", "text": message}
+    api_key = "Bearer " + os.environ.get("SLACK_BOT_USER_OAUTH_TOKEN")
+    headers = {"Authorization": api_key}
+
+    r = requests.post("https://slack.com/api/chat.postMessage", params=message_info, headers=headers)
+    
     response_body = create_response_body(task)
     
     return make_response(jsonify(response_body), 200)
