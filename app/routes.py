@@ -110,14 +110,17 @@ def replace_task(task_id):
     
     request_body = request.get_json()
 
-    if "title" not in request_body or "description" not in request_body:
+    try:
+        task.title = request_body["title"]
+        task.description = request_body["description"]
+    except KeyError:
         return jsonify({"details": f"Invalid data"}), 400
 
-    task.title = request_body["title"]
-    task.description = request_body["description"]
-
-    if "completed_at" in request_body:
+    try:
         task.completed_at = request_body["completed_at"]
+    except KeyError:
+        pass
+    
 
     db.session.commit()
 
@@ -129,7 +132,7 @@ def replace_task(task_id):
 def delete_task(task_id):
     task_id = validate_id(task_id)
     task = retrieve_object(task_id, Task)
-   
+    
     title = task.title
 
     db.session.delete(task)
@@ -156,6 +159,7 @@ def mark_complete(task_id):
 
     r = requests.post("https://slack.com/api/chat.postMessage", params=message_info, headers=headers)
     
+    # HTTP response body
     response_body = create_task_response_body(task)
     
     return make_response(jsonify(response_body), 200)
@@ -210,7 +214,7 @@ def read_all_goals():
 def read_specific_goal(goal_id):
     goal_id = validate_id(goal_id)
     goal = retrieve_object(goal_id, Goal)
-   
+    
     response_body = {
         "goal": {
             "id": goal.goal_id,
@@ -221,16 +225,17 @@ def read_specific_goal(goal_id):
     return make_response(jsonify(response_body), 200)
 
 @goal_bp.route("/<goal_id>", methods=["PUT"])
-def update_goal(goal_id):
+def replace_goal(goal_id):
     goal_id = validate_id(goal_id)
     goal = retrieve_object(goal_id, Goal)
 
     request_body = request.get_json()
 
-    if "title" not in request_body:
+    try:
+        goal.title = request_body["title"]
+    except KeyError:
         return jsonify({"details": f"Invalid data"}), 400
-    
-    goal.title = request_body["title"]
+
     db.session.commit()
 
     response_body = {
