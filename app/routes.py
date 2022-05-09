@@ -35,14 +35,25 @@ def retrieve_object(id, Model):
     return model
 
 def create_task_response_body(task):
-    response_body = {
-        "task": {
-            "id": task.task_id,
-            "title": task.title,
-            "description": task.description,
-            "is_complete": bool(task.completed_at)
-            }
-    }
+    if task.goal_id:
+        response_body = {
+            "task": {
+                "id": task.task_id,
+                "goal_id": task.goal_id,
+                "title": task.title,
+                "description": task.description,
+                "is_complete": bool(task.completed_at)
+                }
+        }
+    else:
+        response_body = {
+            "task": {
+                "id": task.task_id,
+                "title": task.title,
+                "description": task.description,
+                "is_complete": bool(task.completed_at)
+                }
+        }
     return response_body
 
 @task_bp.route("", methods=["GET"])
