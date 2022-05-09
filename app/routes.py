@@ -35,16 +35,12 @@ def retrieve_object(id, Model):
     return model
 
 def create_task_response_body(task):
-    if task.completed_at:
-        task_completed = True
-    else:
-        task_completed = False
     response_body = {
         "task": {
             "id": task.task_id,
             "title": task.title,
             "description": task.description,
-            "is_complete": task_completed
+            "is_complete": bool(task.completed_at)
             }
     }
     return response_body
@@ -277,6 +273,29 @@ def send_list_of_tasks_to_goal(goal_id):
     response_body = {
         "id": goal.goal_id,
         "task_ids": task_ids
+    }
+
+    return make_response(jsonify(response_body), 200)
+
+@goal_bp.route("/<goal_id>/tasks", methods=["GET"])
+def read_tasks_of_one_goal(goal_id):
+    goal_id = validate_id(goal_id)
+    goal = retrieve_object(goal_id, Goal)
+    # request_body = request.get_json()
+    task_response = []
+    for task in goal.tasks:
+        task_response.append({
+            "id": task.task_id,
+            "goal_id": task.goal_id,
+            "title": task.title,
+            "description": task.description,
+            "is_complete": bool(task.completed_at)
+        })
+
+    response_body = {
+        "id": goal_id,
+        "title": goal.title,
+        "tasks": task_response
     }
 
     return make_response(jsonify(response_body), 200)
