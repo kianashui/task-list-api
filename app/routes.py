@@ -176,7 +176,8 @@ def mark_complete(task_id):
     # send automatic slack message
     message = "Someone just completed the task " + task.title
     message_info = {"channel": "task-notifications", "text": message}
-    api_key = "Bearer " + os.environ.get("SLACK_BOT_USER_OAUTH_TOKEN")
+    #api_key = "Bearer " + os.environ.get("SLACK_BOT_USER_OAUTH_TOKEN")
+    api_key = os.environ.get("SLACK_BOT_USER_OAUTH_TOKEN")
     headers = {"Authorization": api_key}
 
     r = requests.post("https://slack.com/api/chat.postMessage", params=message_info, headers=headers)
@@ -313,7 +314,7 @@ def read_tasks_of_one_goal(goal_id):
     goal = retrieve_object(goal_id, Goal)
     
     task_response = []
-    
+
     for task in goal.tasks:
         task_response.append({
             "id": task.task_id,
