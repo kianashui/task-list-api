@@ -174,14 +174,17 @@ def mark_complete(task_id):
     db.session.commit()
 
     # send automatic slack message
-    message = "Someone just completed the task " + task.title
-    message_info = {"channel": "task-notifications", "text": message}
-    #api_key = "Bearer " + os.environ.get("SLACK_BOT_USER_OAUTH_TOKEN")
-    api_key = os.environ.get("SLACK_BOT_USER_OAUTH_TOKEN")
-    headers = {"Authorization": api_key}
+    try:
+        message = "Someone just completed the task " + task.title
+        message_info = {"channel": "task-notifications", "text": message}
+        #api_key = "Bearer " + os.environ.get("SLACK_BOT_USER_OAUTH_TOKEN")
+        api_key = os.environ.get("SLACK_BOT_USER_OAUTH_TOKEN")
+        headers = {"Authorization": api_key}
 
-    r = requests.post("https://slack.com/api/chat.postMessage", params=message_info, headers=headers)
-    
+        r = requests.post("https://slack.com/api/chat.postMessage", params=message_info, headers=headers)
+    except:
+        return jsonify({"error": "slack message could not be sent"})
+
     # HTTP response body
     response_body = create_task_response_body(task)
     
