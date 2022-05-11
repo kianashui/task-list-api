@@ -177,8 +177,7 @@ def mark_complete(task_id):
     try:
         message = "Someone just completed the task " + task.title
         message_info = {"channel": "task-notifications", "text": message}
-        #api_key = "Bearer " + os.environ.get("SLACK_BOT_USER_OAUTH_TOKEN")
-        api_key = os.environ.get("SLACK_BOT_USER_OAUTH_TOKEN")
+        api_key = "Bearer " + os.environ.get("SLACK_BOT_USER_OAUTH_TOKEN", "")
         headers = {"Authorization": api_key}
 
         r = requests.post("https://slack.com/api/chat.postMessage", params=message_info, headers=headers)
