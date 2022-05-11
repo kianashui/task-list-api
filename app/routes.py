@@ -56,6 +56,15 @@ def create_task_response_body(task):
         }
     return response_body
 
+def create_goal_response_body(goal):
+    response_body = {
+        "goal": {
+            "id": goal.goal_id,
+            "title": goal.title
+        }
+    }
+    return response_body
+
 @task_bp.route("", methods=["GET"])
 def read_all_tasks():
     sort_query = request.args.get("sort")
@@ -80,9 +89,8 @@ def read_all_tasks():
     return jsonify(response)
 
 @task_bp.route("/<task_id>", methods=["GET"])
-def read_specific_task(task_id):
+def read_task(task_id):
     task_id = validate_id(task_id)
-
     task = retrieve_object(task_id, Task)
     
     response_body = create_task_response_body(task)
@@ -93,21 +101,27 @@ def read_specific_task(task_id):
 def create_task():
     request_body = request.get_json()
 
-    if "title" not in request_body or "description" not in request_body:
+    # create task with required attributes
+    try:
+        task = Task(
+            title=request_body["title"],
+            description=request_body["description"]
+            )
+    except KeyError:
         return jsonify({"details": f"Invalid data"}), 400
 
-    task = Task(title=request_body["title"],
-        description=request_body["description"])
-    
-    if "completed_at" in request_body:
+    # add optional attributes to task if data is provided
+    try:
         task.completed_at = request_body["completed_at"]
+    except KeyError:
+        pass
     
     db.session.add(task)
     db.session.commit()
 
     response_body = create_task_response_body(task)
 
-    return make_response(jsonify(response_body), 201)
+    return jsonify(response_body), 201
 
 
 @task_bp.route("/<task_id>", methods=["PUT"])
@@ -117,23 +131,24 @@ def replace_task(task_id):
     
     request_body = request.get_json()
 
+    # replace task with required attributes
     try:
         task.title = request_body["title"]
         task.description = request_body["description"]
     except KeyError:
         return jsonify({"details": f"Invalid data"}), 400
 
+    # replace optional attributes if data is provided
     try:
         task.completed_at = request_body["completed_at"]
     except KeyError:
         pass
-    
 
     db.session.commit()
 
     response_body = create_task_response_body(task)
 
-    return make_response(jsonify(response_body), 200)
+    return jsonify(response_body), 200
 
 @task_bp.route("/<task_id>", methods=["DELETE"])
 def delete_task(task_id):
@@ -147,7 +162,7 @@ def delete_task(task_id):
 
     response_body = {'details': f'Task {task_id} "{title}" successfully deleted'}
 
-    return make_response(jsonify(response_body), 200)
+    return jsonify(response_body), 200
 
 @task_bp.route("/<task_id>/mark_complete", methods=["PATCH"])
 def mark_complete(task_id):
@@ -169,39 +184,36 @@ def mark_complete(task_id):
     # HTTP response body
     response_body = create_task_response_body(task)
     
-    return make_response(jsonify(response_body), 200)
+    return jsonify(response_body), 200
 
 @task_bp.route("/<task_id>/mark_incomplete", methods=["PATCH"])
 def mark_incomplete(task_id):
     task_id = validate_id(task_id)
     task = retrieve_object(task_id, Task)
     
+    # change completed at time to None and commit to database
     task.completed_at = None
     db.session.commit()
 
     response_body = create_task_response_body(task)
     
-    return make_response(jsonify(response_body), 200)
+    return jsonify(response_body), 200
 
 @goal_bp.route("", methods=["POST"])
 def create_goal():
     request_body = request.get_json()
-
-    if "title" not in request_body:
-        return jsonify({"details": "Invalid data"}), 400
     
-    goal = Goal(title=request_body["title"])
+    try:
+        goal = Goal(title=request_body["title"])
+    except KeyError:
+        return jsonify({"details": "Invalid data"}), 400
+
     db.session.add(goal)
     db.session.commit()
 
-    response_body = {
-        "goal": {
-            "id": goal.goal_id,
-            "title": goal.title
-        }
-    }
+    response_body = create_goal_response_body(goal)
 
-    return make_response(jsonify(response_body), 201)
+    return jsonify(response_body), 201
 
 @goal_bp.route("", methods=["GET"])
 def read_all_goals():
@@ -215,21 +227,16 @@ def read_all_goals():
             "title": goal.title
         })
 
-    return make_response(jsonify(response_body), 200)
+    return jsonify(response_body), 200
 
 @goal_bp.route("/<goal_id>", methods=["GET"])
 def read_specific_goal(goal_id):
     goal_id = validate_id(goal_id)
     goal = retrieve_object(goal_id, Goal)
     
-    response_body = {
-        "goal": {
-            "id": goal.goal_id,
-            "title": goal.title
-        }
-    }
+    response_body = create_goal_response_body(goal)
 
-    return make_response(jsonify(response_body), 200)
+    return jsonify(response_body), 200
 
 @goal_bp.route("/<goal_id>", methods=["PUT"])
 def replace_goal(goal_id):
@@ -245,19 +252,15 @@ def replace_goal(goal_id):
 
     db.session.commit()
 
-    response_body = {
-        "goal": {
-            "id": goal.goal_id,
-            "title": goal.title
-        }
-    }
+    response_body = create_goal_response_body(goal)
 
-    return make_response(jsonify(response_body), 200)
+    return jsonify(response_body), 200
 
 @goal_bp.route("/<goal_id>", methods=["DELETE"])
 def delete_goal(goal_id):
     goal_id = validate_id(goal_id)
     goal = retrieve_object(goal_id, Goal)
+
     title = goal.title
     
     db.session.delete(goal)
@@ -265,18 +268,34 @@ def delete_goal(goal_id):
     
     response_body = {"details": f'Goal {goal_id} "{title}" successfully deleted'}
 
-    return make_response(jsonify(response_body), 200)
+    return jsonify(response_body), 200
 
 @goal_bp.route("/<goal_id>/tasks", methods=["POST"])
 def send_list_of_tasks_to_goal(goal_id):
     goal_id = validate_id(goal_id)
     goal = retrieve_object(goal_id, Goal)
+
     request_body = request.get_json()
-    task_ids = request_body["task_ids"]
+
+    # verify task_ids list in request body
+    try:
+        task_ids = request_body["task_ids"]
+    except KeyError:
+        return jsonify({"details": f"Invalid data"}), 400
+
+    if not isinstance(task_ids, list):
+        return jsonify({"details": "Expected list of task ids"}), 400
+
+    # validate task_ids and append tasks to list of tasks
+    tasks = []
 
     for task_id in task_ids:
         task_id = validate_id(task_id)
         task = retrieve_object(task_id, Task)
+        tasks.append(task)
+
+    # update goal_id for each task
+    for task in tasks:
         task.goal_id = goal_id
     
     db.session.commit()
@@ -286,14 +305,15 @@ def send_list_of_tasks_to_goal(goal_id):
         "task_ids": task_ids
     }
 
-    return make_response(jsonify(response_body), 200)
+    return jsonify(response_body), 200
 
 @goal_bp.route("/<goal_id>/tasks", methods=["GET"])
 def read_tasks_of_one_goal(goal_id):
     goal_id = validate_id(goal_id)
     goal = retrieve_object(goal_id, Goal)
-    # request_body = request.get_json()
+    
     task_response = []
+    
     for task in goal.tasks:
         task_response.append({
             "id": task.task_id,
@@ -309,4 +329,4 @@ def read_tasks_of_one_goal(goal_id):
         "tasks": task_response
     }
 
-    return make_response(jsonify(response_body), 200)
+    return jsonify(response_body), 200
