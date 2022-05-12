@@ -302,6 +302,11 @@ def send_list_of_tasks_to_goal(goal_id):
         task.goal_id = goal_id
     
     db.session.commit()
+
+    # create task_ids list using updated data
+    task_ids = []
+    for task in goal.tasks:
+        task_ids.append(task.task_id)
     
     response_body = {
         "id": goal.goal_id,
