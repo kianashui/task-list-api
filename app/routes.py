@@ -35,25 +35,18 @@ def retrieve_object(id, Model):
     return model
 
 def create_task_response_body(task):
+    response_body = {
+            "task": {
+                "id": task.task_id,
+                "title": task.title,
+                "description": task.description,
+                "is_complete": bool(task.completed_at)
+            }
+    }
+
     if task.goal_id:
-        response_body = {
-            "task": {
-                "id": task.task_id,
-                "goal_id": task.goal_id,
-                "title": task.title,
-                "description": task.description,
-                "is_complete": bool(task.completed_at)
-                }
-        }
-    else:
-        response_body = {
-            "task": {
-                "id": task.task_id,
-                "title": task.title,
-                "description": task.description,
-                "is_complete": bool(task.completed_at)
-                }
-        }
+        response_body["task"]["goal_id"] = task.goal_id
+
     return response_body
 
 def create_goal_response_body(goal):
@@ -86,7 +79,7 @@ def read_all_tasks():
             "is_complete": False
         })
     
-    return jsonify(response)
+    return jsonify(response), 200
 
 @task_bp.route("/<task_id>", methods=["GET"])
 def read_task(task_id):
@@ -95,7 +88,7 @@ def read_task(task_id):
     
     response_body = create_task_response_body(task)
 
-    return jsonify(response_body)
+    return jsonify(response_body), 200
 
 @task_bp.route("", methods=["POST"])
 def create_task():
@@ -182,7 +175,7 @@ def mark_complete(task_id):
 
         r = requests.post("https://slack.com/api/chat.postMessage", params=message_info, headers=headers)
     except:
-        return jsonify({"error": "slack message could not be sent"})
+        return jsonify({"error": "slack message could not be sent"}), 500
 
     # HTTP response body
     response_body = create_task_response_body(task)
